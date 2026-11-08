@@ -90,11 +90,9 @@
     justify-content: flex-start; padding-top: 34px;
   }
   .back .mascot.small { width: 90px; height: 90px; margin-bottom: 6px; }
-  .grade { font-family: "Gowun Batang", serif; font-size: 56px; font-weight: 700; color: var(--accent); line-height: 1.1; }
-  .exercise { font-size: 21px; font-weight: 700; margin-top: 14px; }
-  .detail { font-size: 14px; color: var(--muted); margin-top: 4px; }
-  .divider { width: 40px; height: 1px; background: var(--line); margin: 18px auto; }
-  .message { font-size: 15px; line-height: 1.7; word-break: keep-all; }
+  .message { font-family: "Gowun Batang", serif; font-size: 18px; line-height: 1.7; word-break: keep-all; margin-top: 10px; }
+  .label { font-size: 12px; letter-spacing: .2em; color: var(--muted); }
+  .exercise { font-family: "Gowun Batang", serif; font-size: 30px; font-weight: 700; color: var(--accent); margin-top: 6px; line-height: 1.3; word-break: keep-all; }
   .lucky { margin-top: auto; font-size: 12px; color: var(--muted); display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
   .lucky b { color: var(--ink); font-weight: 500; }
 
@@ -137,11 +135,10 @@
     <!-- 뽑은 후 -->
     <div class="face back">
       <img class="mascot small" src="assets/bbippae.png" alt="" onerror="this.remove()">
-      <div class="grade" id="grade"></div>
-      <div class="exercise" id="exercise"></div>
-      <div class="detail" id="detail"></div>
-      <div class="divider"></div>
       <p class="message" id="message"></p>
+      <div class="divider"></div>
+      <div class="label">추천 운동</div>
+      <div class="exercise" id="exercise"></div>
       <div class="lucky">
         <span>행운의 색 <b id="color"></b></span>
         <span>행운의 시간 <b id="time"></b></span>
@@ -167,83 +164,117 @@
 /* ============================================
    설정 — 링크는 여기서 바꾸세요
    ============================================ */
-const SHOP_URL  = "https://smartstore.naver.com/";        // TODO: 피지컬베이커리 쇼핑몰 주소로 교체
+const SHOP_URL  = "https://smartstore.naver.com/physical_bakery";
 const INSTA_URL = "https://www.instagram.com/physical_bakery/";
 const INSTA_ID  = "@physical_bakery";
 
 /* ============================================
-   운세 데이터 — 자유롭게 추가·수정하세요
-   weight: 나올 확률 비중 (합계 100 기준)
+   운세 데이터 — 한 줄씩 추가·수정하세요
+   text: 운세 문구 / ex: 추천 운동
    ============================================ */
-const GRADES = [
-  { name: "대길",   weight: 15, pool: "high" },
-  { name: "길",     weight: 35, pool: "mid"  },
-  { name: "중길",   weight: 30, pool: "mid"  },
-  { name: "소길",   weight: 15, pool: "low"  },
-  { name: "휴식운", weight: 5,  pool: "rest" },
+const FORTUNES = [
+  { text: "귀인이 나타날 운세. 땀 흘리는 곳에서 만납니다.", ex: "러닝크루" },
+  { text: "재물운 상승! 허벅지 두께만큼 잔고가 두꺼워집니다.", ex: "스쿼트" },
+  { text: "연애운 활짝. 랠리가 길어질수록 인연도 깊어집니다.", ex: "테니스" },
+  { text: "승진운이 보입니다. 버티는 힘이 곧 실력.", ex: "플랭크" },
+  { text: "번아웃 주의보. 오늘은 숨부터 고르세요.", ex: "산책" },
+  { text: "이동수가 있습니다. 어디든 뛰어갈 체력을 키우세요.", ex: "러닝" },
+  { text: "시험운 대박. 공부는 엉덩이 힘, 엉덩이 힘은 런지.", ex: "런지" },
+  { text: "구설수 주의. 입은 틀어막고 숨차는 하루를 보내세요.", ex: "줄넘기" },
+  { text: "문서운이 들어옵니다. 계약서에 사인할 팔힘 준비.", ex: "덤벨" },
+  { text: "새 친구운. 같이 흘린 땀은 배신하지 않아요.", ex: "크로스핏" },
+  { text: "금전운 상승. 돈 안 드는 운동이 최고의 재테크.", ex: "걷기" },
+  { text: "건강운 최고! 이미 다 가졌으니 더 높이 오르세요.", ex: "클라이밍" },
+  { text: "고집이 세지는 해. 몸부터 유연하게 풀어두세요.", ex: "요가" },
+  { text: "인복이 넘칩니다. 혼자보다 둘이 강해요.", ex: "배드민턴" },
+  { text: "기다리던 소식이 옵니다. 높은 곳에서 더 잘 들릴 거예요.", ex: "등산" },
+  { text: "마음의 평화가 찾아옵니다. 물 흐르듯 사세요.", ex: "수영" },
+  { text: "결단력이 필요한 해. 망설임은 원투로 날리세요.", ex: "복싱" },
+  { text: "늦잠운이 강합니다. 이불 밖으로 나오면 성공.", ex: "홈트" },
+  { text: "식복이 터지는 해. 먹은 만큼 신나게 흔드세요.", ex: "줌바" },
+  { text: "자세가 삶의 모든 것을 바꿉니다. 자세가 바르면 모든 일이 바로 섭니다.", ex: "필라테스" },
+  { text: "회사에 빌런이 나타날 수 있습니다. 우아하게 대처하세요.", ex: "발레" },
+  { text: "겉으로는 평온해 보이지만 마음고생을 할 수 있습니다. 중심을 딱 잡으세요.", ex: "바레" },
+  { text: "넘어져도 웃을 수 있는 해. 많이 실패하세요. 다 돌아옵니다.", ex: "스노보드" },
+  { text: "흥이 넘치는 해. 클럽 대신 페달 위에서 노세요.", ex: "스피닝" },
+  { text: "인맥운 상승. 중요한 대화는 필드에서 이뤄집니다.", ex: "골프" },
+  { text: "합격운 상승! 한 계단씩 오르면 붙습니다.", ex: "계단 오르기" },
+  { text: "팀운이 좋은 해. 패스를 잘 주면 복이 돌아옵니다.", ex: "농구" },
+  { text: "동료 덕을 많이 보게 됩니다. 공(功, Ball)은 다 나에게로 올 거예요.", ex: "풋살" },
+  { text: "숫자 4와 5가 길합니다. 45분 뽀모도로로 일하고, 운동도 45분!", ex: "F45" },
+  { text: "위로 올라갈 운. 턱걸이 하나가 인생을 끌어올립니다.", ex: "턱걸이" },
+  { text: "버티는 자가 이기는 해. 딱 한 번만 더 일어나세요.", ex: "윗몸일으키기" },
+  { text: "반전운이 있습니다. 넘어져도 바로 일어나는 해.", ex: "버피" },
+  { text: "리더운 상승. 맨 앞에서 노를 젓게 됩니다.", ex: "로잉머신" },
+  { text: "순발력이 빛나는 해. 기회는 빠르게 받아치세요.", ex: "탁구" },
+  { text: "정리운이 들어옵니다. 뭉친 것부터 풀어야 술술 풀립니다.", ex: "폼롤러" },
+  { text: "새 출발운. 첫 페달만 밟으면 그다음은 쉽습니다.", ex: "자전거" },
+  { text: "협상운 상승. 밀당의 기술은 등에서 나옵니다.", ex: "랫풀다운" },
+  { text: "뒷심운이 강합니다. 마지막 1km가 인생을 바꿔요.", ex: "마라톤" },
+  { text: "여행운이 있습니다. 바다가 당신을 부릅니다.", ex: "서핑" },
+  { text: "한계 돌파운. 달리고 밀고 끌다 보면 못 할 게 없어요.", ex: "하이록스" },
+  { text: "귀가 얇아지는 해. 중심부터 단단히 잡으세요.", ex: "코어 운동" },
+  { text: "균형운이 들어옵니다. 일과 삶, 줄 하나로 중심 잡아요.", ex: "TRX" },
+  { text: "어깨운 상승. 어깨 펴고 다니면 일이 술술 풀립니다.", ex: "숄더프레스" },
+  { text: "등 뒤를 조심하세요. 등이 튼튼하면 뒤통수 맞을 일이 줄어듭니다.", ex: "데드리프트" },
+  { text: "칭찬운 상승. 팔뚝 보고 다들 한마디씩 합니다.", ex: "푸시업" },
+  { text: "모든 일은 악으로 됩니다. 악력을 키워두면 기회를 놓치지 않습니다.", ex: "철봉" },
+  { text: "봉 잡는 해! 진짜 봉을 잡으면 운도 같이 올라갑니다.", ex: "폴댄스" },
+  { text: "의외의 재능 발견. 숨겨진 리듬감이 깨어납니다.", ex: "K-POP 댄스" },
+  { text: "물복이 있습니다. 물속에서 스트레스가 녹아요.", ex: "아쿠아로빅, 수영" },
+  { text: "야근운이 있습니다. 밤공기 가르며 하루를 리셋하세요.", ex: "나이트 러닝" },
+  { text: "이직운이 보입니다. 새 레인에서 스트라이크 칩니다.", ex: "볼링" },
+  { text: "역전운이 있습니다. 깔려도 기술 하나로 판을 뒤집어요.", ex: "주짓수" },
+  { text: "자존감 뻠삥운. 거울 속 나 자신을 점점 사랑하게 됩니다.", ex: "웨이트" },
+  { text: "함께 뛰면 복이 두 배. 결승선에서 웃게 됩니다.", ex: "10K 대회" },
+  { text: "체력이 곧 재력인 해. 하루 만 보가 적금입니다.", ex: "만보 걷기" },
+  { text: "급할수록 돌아가는 해. 천천히, 정확하게가 제일 빠릅니다.", ex: "필라테스" },
+  { text: "인연은 코트 위에. 네트 너머를 주목하세요.", ex: "배드민턴" },
+  { text: "협동운. 혼자 빨리보다 함께 멀리 갑니다.", ex: "트레킹" },
+  { text: "연애운 상승. 손잡을 일이 많아집니다.", ex: "스윙댄스" },
+  { text: "승부욕이 불타는 해. 링 위에서 진짜 나를 만납니다.", ex: "종합격투기" },
+  { text: "한 방이 있는 해. 크게 휘두르면 홀인원 갑니다.", ex: "스크린골프" },
+  { text: "강약 조절이 중요한 해. 달릴 땐 달리고 쉴 땐 쉬세요.", ex: "인터벌 트레이닝" },
+  { text: "몸이 가벼워지는 해. 날아오를 준비 완료.", ex: "트램펄린" },
+  { text: "절약운 상승. 헬스장비 아끼고 산에서 근육 키워요.", ex: "산스장" },
+  { text: "인내운 상승. 천천히 꾸준히 가는 사람이 이깁니다.", ex: "슬로우 조깅" },
+  { text: "속이 답답한 해. 샌드백에 다 털어내세요.", ex: "킥복싱" },
+  { text: "관점이 바뀌는 해. 거꾸로 보면 답이 보입니다.", ex: "머리서기" },
+  { text: "엉덩이가 무거운 해. 앉았다 일어날수록 운이 뜁니다.", ex: "점프 스쿼트" },
+  { text: "출근길 운세 대박. 한 정거장 먼저 내려 걸어가세요. 귀인을 만나요.", ex: "걷기" },
+  { text: "칼퇴운이 있습니다. 딴 길로 새지 말고 6시 땡 하면 체육관 직행!", ex: "헬스" },
+  { text: "귀차니즘 극복운. 딱 4분이면 하루가 달라집니다.", ex: "타바타" },
+  { text: "행운의 숫자는 100. 매일 어떤 운동이든 100개만 채우세요.", ex: "100개" },
+  { text: "새벽형 인간 될 운. 해 뜨기 전이 제일 상쾌해요.", ex: "모닝 러닝" },
+  { text: "만사형통의 해. 얼음 위처럼 미끄러지듯 술술 풀립니다.", ex: "아이스 스케이트" },
+  { text: "좋은 스승을 만나는 해. 혼자 헤매지 말고 배우면 금방 늡니다.", ex: "PT" },
+  { text: "하체운 대박. 튼튼한 다리가 당신을 멀리 데려가요.", ex: "레그프레스" },
+  { text: "승리의 기운. 골망을 흔드는 해.", ex: "축구" },
+  { text: "슛도 고백도 던지면 들어가는 해. 망설이지 말고 쏘세요.", ex: "농구" },
+  { text: "소통운 상승. 주고받는 만큼 관계가 단단해집니다.", ex: "탁구" },
+  { text: "기운이 팔팔한 해. 남는 에너지는 땀으로 쓰세요.", ex: "HIIT" },
+  { text: "고민 해결운. 걷다 보면 답이 나옵니다.", ex: "둘레길 걷기 (음악은 듣지 마세요)" },
+  { text: "소원 성취운. 정상에서 빌면 이뤄집니다.", ex: "일출 산행" },
+  { text: "열이 많이 필요한 해. 몸부터 뜨겁게 데우세요.", ex: "핫요가, 사우나" },
+  { text: "일복이 터지는 해. 체력이 받쳐줘야 합니다.", ex: "서킷 트레이닝" },
+  { text: "힘든 일이 나를 짓누를 수 있습니다. 무거울수록 나는 더 강해질 거예요.", ex: "파워리프팅" },
+  { text: "세상이 나를 거꾸로 매달지라도... 오히려 혈액순환에 좋을 거예요.", ex: "플라잉 요가" },
+  { text: "주말운 상승. 일요일 아침 강바람이 인생을 바꿉니다.", ex: "한강 러닝" },
+  { text: "지갑 지키는 해. 홈트 하나로 PT비 아낍니다.", ex: "유튜브 홈트" },
+  { text: "이동수가 있습니다. 짐도 인생도 번쩍 들어 올리세요.", ex: "역도" },
+  { text: "예술혼이 씌는 해. 처음 하는 운동에서 재능 발견.", ex: "재즈댄스, 현대무용" },
+  { text: "물 들어올 때 노 젓는 해. 일단 물에 뛰어드세요.", ex: "로잉머신, 카약" },
+  { text: "재충전운. 물 위에서 마음이 맑아집니다.", ex: "카약" },
+  { text: "합이 잘 맞는 해. 박자만 맞으면 다 됩니다.", ex: "스포츠 댄스" },
+  { text: "오르막 내리막이 많은 해. 굴곡이 많을수록 다리는 단단해집니다.", ex: "트레일 러닝" },
+  { text: "나이가 들었는데 체력은 더 강해지고 더 젊어지는 해.", ex: "크로스핏" },
+  { text: "제자리걸음 같아도 괜찮은 해. 계속 밟으면 다 쌓입니다.", ex: "실내 자전거" },
+  { text: "맷집이 생기는 해. 맞아도 다시 일어나는 사람이 이깁니다.", ex: "복싱" },
+  { text: "흐름을 타는 해. 힘을 빼야 뜨는 법입니다.", ex: "수영" },
+  { text: "봉변살이 있으나 봉을 잡으면 피해 갑니다.", ex: "폴댄스" },
+  { text: "체력이 스펙인 해. 8km 달리고도 웃는 사람이 이깁니다.", ex: "하이록스" },
+  { text: "근손실이 있습니다. 일주일에 4회 이상 운동하세요.", ex: "뭐든지" },
 ];
-
-const EXERCISES = {
-  high: [
-    { name: "버피 테스트", detail: "10개 × 5세트" },
-    { name: "인터벌 달리기", detail: "1분 전력 + 1분 걷기 × 10회" },
-    { name: "스쿼트 100개", detail: "나눠서 해도 OK" },
-    { name: "계단 오르기", detail: "15층 × 2번" },
-    { name: "줄넘기", detail: "1,000개" },
-    { name: "점프 스쿼트", detail: "15개 × 4세트" },
-  ],
-  mid: [
-    { name: "스쿼트", detail: "20개 × 3세트" },
-    { name: "푸시업", detail: "15개 × 3세트 (무릎 대고 OK)" },
-    { name: "플랭크", detail: "1분 × 3세트" },
-    { name: "빠르게 걷기", detail: "30분" },
-    { name: "런지", detail: "양쪽 12개 × 3세트" },
-    { name: "자전거 타기", detail: "30분" },
-    { name: "마운틴 클라이머", detail: "30초 × 4세트" },
-    { name: "글루트 브릿지", detail: "20개 × 3세트" },
-  ],
-  low: [
-    { name: "산책", detail: "20분, 노래 3곡 분량" },
-    { name: "하루 종일 계단 이용", detail: "엘리베이터 금지" },
-    { name: "까치발 들기", detail: "50회 (양치하면서)" },
-    { name: "벽 푸시업", detail: "10개 × 3세트" },
-    { name: "점심 먹고 걷기", detail: "10분" },
-  ],
-  rest: [
-    { name: "전신 스트레칭", detail: "15분" },
-    { name: "폼롤러", detail: "10분, 종아리·허벅지 위주" },
-    { name: "요가", detail: "20분" },
-    { name: "푹 자기", detail: "오늘은 7시간 이상" },
-  ],
-};
-
-const MESSAGES = {
-  "대길": [
-    "오늘 몸은 갓 구운 빵처럼 잘 부풀었어요. 평소보다 한 단계 올려도 좋은 날.",
-    "근육이 먼저 운동을 부르는 날. 미루면 오히려 아쉬울 거예요.",
-    "땀 흘린 만큼 기분이 바삭해지는 하루가 될 거예요.",
-  ],
-  "길": [
-    "시작만 하면 끝까지 가는 날. 첫 세트가 제일 중요해요.",
-    "꾸준함이 운을 만드는 날. 오늘 한 만큼 내일이 가벼워져요.",
-    "운동 끝나고 마시는 물 한 잔이 유난히 맛있을 거예요.",
-  ],
-  "중길": [
-    "무리하지 않아도 충분한 날. 정해진 만큼만 깔끔하게.",
-    "적당히 반죽된 하루. 너무 세게 치대지 말고 리듬을 지키세요.",
-    "오늘의 10분이 다음 주의 체력이 돼요.",
-  ],
-  "소길": [
-    "에너지는 아껴두고 가볍게 몸만 깨워주세요.",
-    "거창한 운동보다 움직이는 습관이 운을 부르는 날.",
-    "숨이 살짝 차는 정도면 오늘은 성공이에요.",
-  ],
-  "휴식운": [
-    "오늘은 빵도 발효가 필요한 날. 쉬는 것도 운동이에요.",
-    "회복이 곧 성장. 오늘 잘 쉬면 내일 대길이 찾아와요.",
-    "몸이 보내는 신호를 들어주세요. 쉼이 오늘의 미션.",
-  ],
-};
 
 const COLORS = ["오트밀", "차콜", "세이지", "크림", "네이비", "버건디", "올리브", "라이트 그레이"];
 const TIMES  = ["오전 7시", "오전 9시", "점심 12시", "오후 3시", "저녁 6시", "저녁 8시", "밤 10시"];
@@ -276,29 +307,16 @@ $("instaLink").href = INSTA_URL;
 
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
-function pickGrade() {
-  const total = GRADES.reduce((s, g) => s + g.weight, 0);
-  let r = Math.random() * total;
-  for (const g of GRADES) { if ((r -= g.weight) < 0) return g; }
-  return GRADES[GRADES.length - 1];
-}
-
-let lastExercise = null;
+let lastIndex = -1;
 
 function makeFortune() {
-  let g, ex;
-  // 다시 뽑을 때 직전과 같은 운동이 나오지 않게
-  do {
-    g = pickGrade();
-    ex = pick(EXERCISES[g.pool]);
-  } while (ex.name === lastExercise);
-  lastExercise = ex.name;
+  let i;
+  // 다시 뽑을 때 직전과 같은 운세가 나오지 않게
+  do { i = Math.floor(Math.random() * FORTUNES.length); } while (i === lastIndex && FORTUNES.length > 1);
+  lastIndex = i;
   return {
-    date: todayKey,
-    grade: g.name,
-    exercise: ex.name,
-    detail: ex.detail,
-    message: pick(MESSAGES[g.name]),
+    exercise: FORTUNES[i].ex,
+    message: FORTUNES[i].text,
     color: pick(COLORS),
     time: pick(TIMES),
   };
@@ -307,9 +325,7 @@ function makeFortune() {
 let fortune = null;
 
 function render(f) {
-  $("grade").textContent = f.grade;
   $("exercise").textContent = f.exercise;
-  $("detail").textContent = f.detail;
   $("message").textContent = f.message;
   $("color").textContent = f.color;
   $("time").textContent = f.time;
@@ -436,30 +452,29 @@ async function makeCardImage() {
     y += 300;
   }
 
-  ctx.fillStyle = C("--accent");
-  ctx.font = `700 150px ${serif}`;
-  ctx.fillText(fortune.grade, W / 2, y);
-  y += 120;
-
+  y += 40;
   ctx.fillStyle = C("--ink");
-  ctx.font = `700 60px ${sans}`;
-  ctx.fillText(fortune.exercise, W / 2, y);
-  y += 70;
-
-  ctx.fillStyle = C("--muted");
-  ctx.font = `400 38px ${sans}`;
-  ctx.fillText(fortune.detail, W / 2, y);
-  y += 70;
+  ctx.font = `400 50px ${serif}`;
+  for (const line of wrapText(ctx, fortune.message, cw - 160)) {
+    ctx.fillText(line, W / 2, y);
+    y += 82;
+  }
+  y += 10;
 
   ctx.fillStyle = C("--line");
   ctx.fillRect(W / 2 - 50, y, 100, 3);
   y += 90;
 
-  ctx.fillStyle = C("--ink");
-  ctx.font = `400 42px ${sans}`;
-  for (const line of wrapText(ctx, fortune.message, cw - 160)) {
+  ctx.fillStyle = C("--muted");
+  ctx.font = `400 34px ${sans}`;
+  ctx.fillText("추천 운동", W / 2, y);
+  y += 110;
+
+  ctx.fillStyle = C("--accent");
+  ctx.font = `700 92px ${serif}`;
+  for (const line of wrapText(ctx, fortune.exercise, cw - 120)) {
     ctx.fillText(line, W / 2, y);
-    y += 68;
+    y += 110;
   }
 
   ctx.fillStyle = C("--muted");
