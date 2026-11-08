@@ -1,0 +1,504 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>오늘의 운동운세 | 피지컬베이커리</title>
+<meta name="description" content="피지컬베이커리 오늘의 운동운세 — 카드를 뽑아 오늘의 운동을 확인하세요.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  /* ============================================
+     색상 — 여기만 바꾸면 전체 톤이 바뀝니다
+     ============================================ */
+  :root {
+    --bg: #f6f3ee;       /* 배경 (오트밀) */
+    --paper: #ffffff;    /* 카드 앞면 */
+    --ink: #1c1b19;      /* 글자 / 카드 뒷면 */
+    --muted: #8a857c;    /* 보조 글자 */
+    --accent: #c8553d;   /* 포인트 (구운 빵 색) */
+    --line: #e4dfd6;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--bg); color: var(--ink); }
+  body {
+    font-family: "Noto Sans KR", system-ui, sans-serif;
+    min-height: 100dvh;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 32px 16px 40px;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  header { text-align: center; margin-bottom: 28px; }
+  .logo { width: 220px; max-width: 70vw; display: block; margin: 0 auto; mix-blend-mode: multiply; }
+  h1 { font-family: "Gowun Batang", serif; font-size: 30px; font-weight: 700; margin-top: 8px; }
+  .date { font-size: 13px; color: var(--muted); margin-top: 6px; }
+
+  /* ---------- 카드 ---------- */
+  .stage { perspective: 1200px; width: 100%; max-width: 340px; }
+  .card {
+    position: relative; width: 100%; aspect-ratio: 3 / 4.3;
+    transform-style: preserve-3d;
+    transition: transform .9s cubic-bezier(.2,.8,.2,1);
+    cursor: pointer;
+  }
+  .card.flipped { transform: rotateY(180deg); cursor: default; }
+  .card.shake { animation: shake .6s ease-in-out; }
+  @keyframes shake {
+    0%,100% { transform: rotate(0); }
+    20% { transform: rotate(-4deg); }
+    40% { transform: rotate(4deg); }
+    60% { transform: rotate(-3deg); }
+    80% { transform: rotate(2deg); }
+  }
+
+  .face {
+    position: absolute; inset: 0; border-radius: 18px;
+    backface-visibility: hidden; -webkit-backface-visibility: hidden;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 28px 24px; text-align: center;
+  }
+
+  /* 뽑기 전 (카드 뒷면 디자인) */
+  .face.front {
+    background: var(--ink); color: var(--bg);
+    box-shadow: 0 18px 40px rgba(28,27,25,.25);
+    overflow: hidden;
+  }
+  .face.front::before {
+    content: ""; position: absolute; inset: 12px;
+    border: 1px solid rgba(246,243,238,.35); border-radius: 12px;
+  }
+  .stars { position: absolute; inset: 0; pointer-events: none; }
+  .stars span {
+    position: absolute; width: 3px; height: 3px; border-radius: 50%;
+    background: var(--bg); opacity: .0; animation: twinkle 3s infinite;
+  }
+  @keyframes twinkle { 0%,100% { opacity: 0; } 50% { opacity: .8; } }
+  .mascot { width: 150px; height: 150px; object-fit: contain; margin-bottom: 18px; position: relative; }
+  .orb { font-size: 72px; margin-bottom: 18px; position: relative; }
+  .front .hint { font-family: "Gowun Batang", serif; font-size: 18px; position: relative; }
+  .front .sub { font-size: 12px; opacity: .6; margin-top: 8px; position: relative; letter-spacing: .1em; }
+
+  /* 뽑은 후 (결과) */
+  .face.back {
+    transform: rotateY(180deg);
+    background: var(--paper); border: 2px solid var(--ink);
+    box-shadow: 0 18px 40px rgba(28,27,25,.15);
+    justify-content: flex-start; padding-top: 34px;
+  }
+  .back .mascot.small { width: 90px; height: 90px; margin-bottom: 6px; }
+  .grade { font-family: "Gowun Batang", serif; font-size: 56px; font-weight: 700; color: var(--accent); line-height: 1.1; }
+  .exercise { font-size: 21px; font-weight: 700; margin-top: 14px; }
+  .detail { font-size: 14px; color: var(--muted); margin-top: 4px; }
+  .divider { width: 40px; height: 1px; background: var(--line); margin: 18px auto; }
+  .message { font-size: 15px; line-height: 1.7; word-break: keep-all; }
+  .lucky { margin-top: auto; font-size: 12px; color: var(--muted); display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+  .lucky b { color: var(--ink); font-weight: 500; }
+
+  /* ---------- 버튼 ---------- */
+  .actions { width: 100%; max-width: 340px; margin-top: 28px; display: flex; flex-direction: column; gap: 10px; }
+  button, .btn {
+    font-family: inherit; font-size: 15px; font-weight: 500;
+    width: 100%; padding: 15px; border-radius: 12px; border: none;
+    text-align: center; text-decoration: none; cursor: pointer;
+  }
+  .btn-primary { background: var(--ink); color: var(--bg); }
+  .btn-secondary { background: transparent; color: var(--ink); border: 1.5px solid var(--ink); }
+  .btn:active, button:active { transform: scale(.98); }
+  .hidden { display: none !important; }
+
+  .notice { font-size: 12px; color: var(--muted); text-align: center; margin-top: 18px; line-height: 1.6; }
+  footer { margin-top: auto; padding-top: 32px; font-size: 11px; letter-spacing: .2em; color: var(--muted); }
+  footer a { color: inherit; text-decoration: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <img class="logo" src="assets/logo_web.jpg" alt="Physical Bakery">
+  <h1>오늘의 운동운세</h1>
+  <div class="date" id="date"></div>
+</header>
+
+<div class="stage">
+  <div class="card" id="card">
+    <!-- 뽑기 전 -->
+    <div class="face front">
+      <div class="stars" id="stars"></div>
+      <!-- 삐빼 이미지: assets/bbippae.png 를 넣으면 자동으로 표시됩니다 -->
+      <img class="mascot" src="assets/bbippae.png" alt="" onerror="this.remove(); document.getElementById('orb').classList.remove('hidden')">
+      <div class="orb hidden" id="orb">🔮</div>
+      <div class="hint">카드를 눌러 뽑아보세요</div>
+      <div class="sub">ONE CARD A DAY</div>
+    </div>
+    <!-- 뽑은 후 -->
+    <div class="face back">
+      <img class="mascot small" src="assets/bbippae.png" alt="" onerror="this.remove()">
+      <div class="grade" id="grade"></div>
+      <div class="exercise" id="exercise"></div>
+      <div class="detail" id="detail"></div>
+      <div class="divider"></div>
+      <p class="message" id="message"></p>
+      <div class="lucky">
+        <span>행운의 색 <b id="color"></b></span>
+        <span>행운의 시간 <b id="time"></b></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="actions">
+  <button class="btn btn-primary" id="drawBtn">운세 뽑기</button>
+  <button class="btn btn-primary hidden" id="shareBtn">결과 카드 저장 · 공유</button>
+  <button class="btn btn-secondary hidden" id="resetBtn">↻ 다시 뽑기</button>
+  <a class="btn btn-secondary hidden" id="shopBtn" target="_blank" rel="noopener">오늘 입고 운동할 옷 보러가기</a>
+</div>
+
+<p class="notice hidden" id="notice">
+  몸 상태에 맞게 강도는 조절하세요.
+</p>
+
+<footer><a id="instaLink" target="_blank" rel="noopener">@physical_bakery</a></footer>
+
+<script>
+/* ============================================
+   설정 — 링크는 여기서 바꾸세요
+   ============================================ */
+const SHOP_URL  = "https://smartstore.naver.com/";        // TODO: 피지컬베이커리 쇼핑몰 주소로 교체
+const INSTA_URL = "https://www.instagram.com/physical_bakery/";
+const INSTA_ID  = "@physical_bakery";
+
+/* ============================================
+   운세 데이터 — 자유롭게 추가·수정하세요
+   weight: 나올 확률 비중 (합계 100 기준)
+   ============================================ */
+const GRADES = [
+  { name: "대길",   weight: 15, pool: "high" },
+  { name: "길",     weight: 35, pool: "mid"  },
+  { name: "중길",   weight: 30, pool: "mid"  },
+  { name: "소길",   weight: 15, pool: "low"  },
+  { name: "휴식운", weight: 5,  pool: "rest" },
+];
+
+const EXERCISES = {
+  high: [
+    { name: "버피 테스트", detail: "10개 × 5세트" },
+    { name: "인터벌 달리기", detail: "1분 전력 + 1분 걷기 × 10회" },
+    { name: "스쿼트 100개", detail: "나눠서 해도 OK" },
+    { name: "계단 오르기", detail: "15층 × 2번" },
+    { name: "줄넘기", detail: "1,000개" },
+    { name: "점프 스쿼트", detail: "15개 × 4세트" },
+  ],
+  mid: [
+    { name: "스쿼트", detail: "20개 × 3세트" },
+    { name: "푸시업", detail: "15개 × 3세트 (무릎 대고 OK)" },
+    { name: "플랭크", detail: "1분 × 3세트" },
+    { name: "빠르게 걷기", detail: "30분" },
+    { name: "런지", detail: "양쪽 12개 × 3세트" },
+    { name: "자전거 타기", detail: "30분" },
+    { name: "마운틴 클라이머", detail: "30초 × 4세트" },
+    { name: "글루트 브릿지", detail: "20개 × 3세트" },
+  ],
+  low: [
+    { name: "산책", detail: "20분, 노래 3곡 분량" },
+    { name: "하루 종일 계단 이용", detail: "엘리베이터 금지" },
+    { name: "까치발 들기", detail: "50회 (양치하면서)" },
+    { name: "벽 푸시업", detail: "10개 × 3세트" },
+    { name: "점심 먹고 걷기", detail: "10분" },
+  ],
+  rest: [
+    { name: "전신 스트레칭", detail: "15분" },
+    { name: "폼롤러", detail: "10분, 종아리·허벅지 위주" },
+    { name: "요가", detail: "20분" },
+    { name: "푹 자기", detail: "오늘은 7시간 이상" },
+  ],
+};
+
+const MESSAGES = {
+  "대길": [
+    "오늘 몸은 갓 구운 빵처럼 잘 부풀었어요. 평소보다 한 단계 올려도 좋은 날.",
+    "근육이 먼저 운동을 부르는 날. 미루면 오히려 아쉬울 거예요.",
+    "땀 흘린 만큼 기분이 바삭해지는 하루가 될 거예요.",
+  ],
+  "길": [
+    "시작만 하면 끝까지 가는 날. 첫 세트가 제일 중요해요.",
+    "꾸준함이 운을 만드는 날. 오늘 한 만큼 내일이 가벼워져요.",
+    "운동 끝나고 마시는 물 한 잔이 유난히 맛있을 거예요.",
+  ],
+  "중길": [
+    "무리하지 않아도 충분한 날. 정해진 만큼만 깔끔하게.",
+    "적당히 반죽된 하루. 너무 세게 치대지 말고 리듬을 지키세요.",
+    "오늘의 10분이 다음 주의 체력이 돼요.",
+  ],
+  "소길": [
+    "에너지는 아껴두고 가볍게 몸만 깨워주세요.",
+    "거창한 운동보다 움직이는 습관이 운을 부르는 날.",
+    "숨이 살짝 차는 정도면 오늘은 성공이에요.",
+  ],
+  "휴식운": [
+    "오늘은 빵도 발효가 필요한 날. 쉬는 것도 운동이에요.",
+    "회복이 곧 성장. 오늘 잘 쉬면 내일 대길이 찾아와요.",
+    "몸이 보내는 신호를 들어주세요. 쉼이 오늘의 미션.",
+  ],
+};
+
+const COLORS = ["오트밀", "차콜", "세이지", "크림", "네이비", "버건디", "올리브", "라이트 그레이"];
+const TIMES  = ["오전 7시", "오전 9시", "점심 12시", "오후 3시", "저녁 6시", "저녁 8시", "밤 10시"];
+
+/* ============================================
+   동작 코드
+   ============================================ */
+const $ = (id) => document.getElementById(id);
+
+const now = new Date();
+const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+const dayNames = ["일", "월", "화", "수", "목", "금", "토"];
+const todayLabel = `${now.getFullYear()}. ${now.getMonth() + 1}. ${now.getDate()}. ${dayNames[now.getDay()]}요일`;
+$("date").textContent = todayLabel;
+$("shopBtn").href = SHOP_URL;
+$("instaLink").href = INSTA_URL;
+
+
+// 별 반짝이 배경
+(function makeStars() {
+  const box = $("stars");
+  for (let i = 0; i < 22; i++) {
+    const s = document.createElement("span");
+    s.style.left = Math.random() * 100 + "%";
+    s.style.top = Math.random() * 100 + "%";
+    s.style.animationDelay = Math.random() * 3 + "s";
+    box.appendChild(s);
+  }
+})();
+
+const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+function pickGrade() {
+  const total = GRADES.reduce((s, g) => s + g.weight, 0);
+  let r = Math.random() * total;
+  for (const g of GRADES) { if ((r -= g.weight) < 0) return g; }
+  return GRADES[GRADES.length - 1];
+}
+
+let lastExercise = null;
+
+function makeFortune() {
+  let g, ex;
+  // 다시 뽑을 때 직전과 같은 운동이 나오지 않게
+  do {
+    g = pickGrade();
+    ex = pick(EXERCISES[g.pool]);
+  } while (ex.name === lastExercise);
+  lastExercise = ex.name;
+  return {
+    date: todayKey,
+    grade: g.name,
+    exercise: ex.name,
+    detail: ex.detail,
+    message: pick(MESSAGES[g.name]),
+    color: pick(COLORS),
+    time: pick(TIMES),
+  };
+}
+
+let fortune = null;
+
+function render(f) {
+  $("grade").textContent = f.grade;
+  $("exercise").textContent = f.exercise;
+  $("detail").textContent = f.detail;
+  $("message").textContent = f.message;
+  $("color").textContent = f.color;
+  $("time").textContent = f.time;
+}
+
+function showResult(animate) {
+  render(fortune);
+  const card = $("card");
+  if (animate) {
+    card.classList.add("shake");
+    setTimeout(() => { card.classList.remove("shake"); card.classList.add("flipped"); }, 600);
+  } else {
+    card.classList.add("flipped");
+  }
+  $("drawBtn").classList.add("hidden");
+  ["shareBtn", "resetBtn", "shopBtn", "notice"].forEach((id) => $(id).classList.remove("hidden"));
+}
+
+// 다시 뽑기: 카드를 뒤집어 처음 화면으로
+function resetCard() {
+  fortune = null;
+  $("card").classList.remove("flipped");
+  ["shareBtn", "resetBtn", "shopBtn", "notice"].forEach((id) => $(id).classList.add("hidden"));
+  $("drawBtn").classList.remove("hidden");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function draw() {
+  if ($("card").classList.contains("flipped")) return;
+  fortune = makeFortune();
+  showResult(true);
+}
+
+$("card").addEventListener("click", draw);
+$("drawBtn").addEventListener("click", draw);
+$("resetBtn").addEventListener("click", resetCard);
+
+/* ---------- 결과 카드 이미지 (인스타 스토리 1080×1920) ---------- */
+function loadImage(src) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
+}
+
+function wrapText(ctx, text, maxWidth) {
+  const lines = [];
+  let line = "";
+  for (const word of text.split(" ")) {
+    const test = line ? line + " " + word : word;
+    if (ctx.measureText(test).width > maxWidth && line) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = test;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+async function makeCardImage() {
+  await document.fonts.ready;
+  const css = getComputedStyle(document.documentElement);
+  const C = (name) => css.getPropertyValue(name).trim();
+  const W = 1080, H = 1920;
+  const cv = document.createElement("canvas");
+  cv.width = W; cv.height = H;
+  const ctx = cv.getContext("2d");
+  const serif = '"Gowun Batang", serif';
+  const sans = '"Noto Sans KR", sans-serif';
+
+  ctx.fillStyle = C("--bg");
+  ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = "center";
+
+  // 상단 로고 (흰 배경이 배경색에 섞이도록 multiply)
+  const logo = await loadImage("assets/logo_web.jpg");
+  if (logo) {
+    const lw = 360, lh = logo.height * (lw / logo.width);
+    ctx.globalCompositeOperation = "multiply";
+    ctx.drawImage(logo, W / 2 - lw / 2, 200 - lh, lw, lh);
+    ctx.globalCompositeOperation = "source-over";
+  }
+  ctx.fillStyle = C("--ink");
+  ctx.font = `700 76px ${serif}`;
+  ctx.fillText("오늘의 운동운세", W / 2, 290);
+  ctx.fillStyle = C("--muted");
+  ctx.font = `400 34px ${sans}`;
+  ctx.fillText(todayLabel, W / 2, 355);
+
+  // 카드
+  const cx = 110, cy = 430, cw = W - 220, ch = 1180;
+  ctx.fillStyle = C("--paper");
+  roundRect(ctx, cx, cy, cw, ch, 40);
+  ctx.fill();
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = C("--ink");
+  ctx.stroke();
+
+  let y = cy + 90;
+  const mascot = await loadImage("assets/bbippae.png");
+  if (mascot) {
+    const size = 260;
+    const ratio = Math.min(size / mascot.width, size / mascot.height);
+    const mw = mascot.width * ratio, mh = mascot.height * ratio;
+    ctx.drawImage(mascot, W / 2 - mw / 2, y, mw, mh);
+    y += size + 150;
+  } else {
+    ctx.font = `120px sans-serif`;
+    ctx.fillText("🔮", W / 2, y + 120);
+    y += 300;
+  }
+
+  ctx.fillStyle = C("--accent");
+  ctx.font = `700 150px ${serif}`;
+  ctx.fillText(fortune.grade, W / 2, y);
+  y += 120;
+
+  ctx.fillStyle = C("--ink");
+  ctx.font = `700 60px ${sans}`;
+  ctx.fillText(fortune.exercise, W / 2, y);
+  y += 70;
+
+  ctx.fillStyle = C("--muted");
+  ctx.font = `400 38px ${sans}`;
+  ctx.fillText(fortune.detail, W / 2, y);
+  y += 70;
+
+  ctx.fillStyle = C("--line");
+  ctx.fillRect(W / 2 - 50, y, 100, 3);
+  y += 90;
+
+  ctx.fillStyle = C("--ink");
+  ctx.font = `400 42px ${sans}`;
+  for (const line of wrapText(ctx, fortune.message, cw - 160)) {
+    ctx.fillText(line, W / 2, y);
+    y += 68;
+  }
+
+  ctx.fillStyle = C("--muted");
+  ctx.font = `400 34px ${sans}`;
+  ctx.fillText(`행운의 색 · ${fortune.color}     행운의 시간 · ${fortune.time}`, W / 2, cy + ch - 70);
+
+  // 하단
+  ctx.fillStyle = C("--ink");
+  ctx.font = `500 40px ${sans}`;
+  ctx.fillText(INSTA_ID, W / 2, 1745);
+  ctx.fillStyle = C("--muted");
+  ctx.font = `400 30px ${sans}`;
+  ctx.fillText("너의 오늘 운동운세는?", W / 2, 1805);
+
+  return new Promise((resolve) => cv.toBlob(resolve, "image/png"));
+}
+
+$("shareBtn").addEventListener("click", async () => {
+  const btn = $("shareBtn");
+  btn.disabled = true;
+  btn.textContent = "카드 만드는 중…";
+  try {
+    const blob = await makeCardImage();
+    const file = new File([blob], `운동운세_${todayKey}.png`, { type: "image/png" });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: "오늘의 운동운세" });
+    } else {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = file.name;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    }
+  } catch (e) {
+    // 공유 창을 닫은 경우 등은 무시
+  }
+  btn.disabled = false;
+  btn.textContent = "결과 카드 저장 · 공유";
+});
+</script>
+</body>
+</html>
