@@ -41,7 +41,30 @@
   .date { font-size: 13px; color: var(--muted); margin-top: 6px; }
 
   /* ---------- 카드 ---------- */
-  .stage { perspective: 1200px; width: 100%; max-width: 360px; }
+  .stage { perspective: 1200px; width: 100%; max-width: 360px; position: relative; }
+
+  /* 뒤집기 연출 (5초): 떠오르며 흔들리다가 천천히 뒤집힘 */
+  .card.summoning { animation: summon 5s ease-in-out forwards; cursor: default; }
+  @keyframes summon {
+    0%   { transform: translateY(0)     rotateZ(0)     rotateY(0); }
+    10%  { transform: translateY(-6px)  rotateZ(-3deg) rotateY(0); }
+    20%  { transform: translateY(-12px) rotateZ(3deg)  rotateY(0); }
+    30%  { transform: translateY(-18px) rotateZ(-4deg) rotateY(0); }
+    40%  { transform: translateY(-22px) rotateZ(4deg)  rotateY(0); }
+    50%  { transform: translateY(-26px) rotateZ(-3deg) rotateY(10deg); }
+    60%  { transform: translateY(-28px) rotateZ(2deg)  rotateY(40deg); }
+    75%  { transform: translateY(-24px) rotateZ(-1deg) rotateY(110deg); }
+    90%  { transform: translateY(-8px)  rotateZ(0)     rotateY(170deg); }
+    100% { transform: translateY(0)     rotateZ(0)     rotateY(180deg); }
+  }
+  .card.summoning .face { animation: glow 5s ease-in-out forwards; }
+  @keyframes glow {
+    0%   { box-shadow: 0 18px 40px rgba(40,20,60,.35); }
+    60%  { box-shadow: 0 0 60px 18px rgba(170,110,230,.75); }
+    100% { box-shadow: 0 18px 40px rgba(40,20,60,.35); }
+  }
+  /* 보라색 연기 캔버스 (카드보다 넓게) */
+  #smoke { position: absolute; left: -35%; top: -25%; width: 170%; height: 150%; pointer-events: none; z-index: 5; }
   .card {
     position: relative; width: 100%; aspect-ratio: 3 / 4;
     transform-style: preserve-3d;
@@ -103,6 +126,16 @@
   .share-hint b { font-weight: 700; }
   .btn-secondary { background: transparent; color: var(--ink); border: 1.5px solid var(--ink); }
   .btn:active, button:active { transform: scale(.98); }
+  .btn-row { display: flex; gap: 10px; }
+  .btn-row .btn { flex: 1; }
+  .toast {
+    position: fixed; left: 50%; bottom: 32px; transform: translate(-50%, 20px);
+    background: var(--purple); color: var(--cream); font-size: 14px; line-height: 1.5;
+    padding: 12px 18px; border-radius: 12px; text-align: center; width: max-content; max-width: calc(100vw - 32px);
+    box-shadow: 0 8px 24px rgba(40,20,60,.3); opacity: 0; pointer-events: none;
+    transition: opacity .25s, transform .25s; z-index: 50;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
   .hidden { display: none !important; }
 
   .notice { font-size: 12px; color: var(--muted); text-align: center; margin-top: 18px; line-height: 1.6; }
@@ -120,6 +153,7 @@
 </header>
 
 <div class="stage">
+  <canvas id="smoke"></canvas>
   <div class="card" id="card">
     <!-- 뽑기 전: 카드 뒷면 -->
     <div class="face front">
@@ -146,7 +180,10 @@
     Instagram <b>@physical_bakery</b> 태그하고 올려주세요.<br>
     행운이 찾아갈지도!
   </p>
-  <button class="btn btn-primary hidden" id="shareBtn">결과 카드 저장 · 공유</button>
+  <div class="btn-row hidden" id="shareRow">
+    <button class="btn btn-primary" id="shareBtn">결과 카드 저장<span class="btn-sub">Save</span></button>
+    <button class="btn btn-primary" id="linkBtn">공유<span class="btn-sub">링크 복사</span></button>
+  </div>
   <button class="btn btn-secondary hidden" id="resetBtn">↻ 다시 뽑기</button>
   <a class="btn btn-secondary hidden" id="shopBtn" target="_blank" rel="noopener">행운 가득 운동템 보러가기</a>
 </div>
@@ -154,6 +191,8 @@
 <p class="notice hidden" id="notice">
   몸 상태에 맞게 강도는 조절하세요.
 </p>
+
+<div class="toast" id="toast"></div>
 
 <footer><a id="instaLink" target="_blank" rel="noopener">@physical_bakery</a></footer>
 
@@ -164,6 +203,8 @@
 const SHOP_URL  = "https://smartstore.naver.com/physical_bakery";
 const INSTA_URL = "https://www.instagram.com/physical_bakery/";
 const INSTA_ID  = "@physical_bakery";
+const SITE_URL  = "https://fortune.physicalbakery.com/";   // 공유 버튼으로 복사되는 주소
+const FLIP_MS   = 5000;                                    // 카드 뒤집기 연출 시간 (5초)
 
 /* ============================================
    운세 데이터 — 한 줄씩 추가·수정하세요
@@ -346,30 +387,112 @@ function render(f) {
   $("time").textContent = f.time;
 }
 
+/* ---------- 보라색 연기 ---------- */
+const smoke = (() => {
+  const cv = $("smoke"), ctx = cv.getContext("2d");
+  let parts = [], running = false, emitUntil = 0, raf = 0;
+  const COLORS = ["120,60,180", "150,90,210", "91,42,134", "185,140,235"];
+
+  // 부드러운 연기 덩어리 이미지를 미리 만들어 둠
+  const sprites = COLORS.map((c) => {
+    const s = document.createElement("canvas"); s.width = s.height = 128;
+    const g = s.getContext("2d"), grd = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+    grd.addColorStop(0, `rgba(${c},.42)`); grd.addColorStop(.45, `rgba(${c},.18)`); grd.addColorStop(1, `rgba(${c},0)`);
+    g.fillStyle = grd; g.fillRect(0, 0, 128, 128);
+    return s;
+  });
+
+  function resize() {
+    const r = cv.getBoundingClientRect(), dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cv.width = r.width * dpr; cv.height = r.height * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function spawn(w, h) {
+    // 카드 둘레(아래쪽·양옆)에서 피어오름
+    const side = Math.random();
+    const cardL = w * .206, cardR = w * .794, cardB = h * .833, cardT = h * .167;
+    let x, y;
+    if (side < .5) { x = cardL + Math.random() * (cardR - cardL); y = cardB - Math.random() * 20; }
+    else { x = Math.random() < .5 ? cardL + Math.random() * 20 : cardR - Math.random() * 20; y = cardT + Math.random() * (cardB - cardT); }
+    parts.push({
+      x, y, vx: (Math.random() - .5) * .6 + (x < w / 2 ? -.25 : .25), vy: -(.4 + Math.random() * .9),
+      r: 18 + Math.random() * 26, grow: .35 + Math.random() * .45,
+      life: 0, max: 90 + Math.random() * 70, rot: Math.random() * 6.28, vr: (Math.random() - .5) * .02,
+      img: sprites[(Math.random() * sprites.length) | 0],
+    });
+  }
+
+  function tick() {
+    const r = cv.getBoundingClientRect(), w = r.width, h = r.height;
+    ctx.clearRect(0, 0, w, h);
+    if (performance.now() < emitUntil) for (let i = 0; i < 2; i++) spawn(w, h);
+    parts = parts.filter((p) => p.life < p.max);
+    for (const p of parts) {
+      p.life++; p.x += p.vx; p.y += p.vy; p.vy *= .995; p.r += p.grow; p.rot += p.vr;
+      const t = p.life / p.max;
+      let a = t < .2 ? t / .2 : 1 - (t - .2) / .8;              // 서서히 나타났다 사라짐
+      const edge = Math.min(p.x, w - p.x, p.y, h - p.y) - p.r * .5; // 캔버스 가장자리에 가까울수록 투명하게
+      a *= Math.max(0, Math.min(1, edge / 50));
+      ctx.globalAlpha = a;
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+      ctx.drawImage(p.img, -p.r, -p.r, p.r * 2, p.r * 2);
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+    if (parts.length || performance.now() < emitUntil) raf = requestAnimationFrame(tick);
+    else { running = false; ctx.clearRect(0, 0, w, h); }
+  }
+
+  return {
+    start(ms) {
+      resize();
+      emitUntil = performance.now() + ms;
+      if (!running) { running = true; raf = requestAnimationFrame(tick); }
+    },
+  };
+})();
+
+let busy = false;
+
 function showResult(animate) {
   render(fortune);
   const card = $("card");
+  $("drawBtn").classList.add("hidden");
+  const reveal = () => {
+    ["shareHint", "shareRow", "resetBtn", "shopBtn", "notice", "lucky"].forEach((id) => $(id).classList.remove("hidden"));
+    fitAll();
+  };
   if (animate) {
-    card.classList.add("shake");
-    setTimeout(() => { card.classList.remove("shake"); card.classList.add("flipped"); }, 600);
+    busy = true;
+    card.style.animationDuration = FLIP_MS + "ms";
+    card.querySelectorAll(".face").forEach((f) => (f.style.animationDuration = FLIP_MS + "ms"));
+    card.classList.add("summoning");
+    smoke.start(FLIP_MS * .85);
+    setTimeout(() => {
+      card.classList.add("flipped");
+      card.classList.remove("summoning");
+      busy = false;
+      reveal();
+    }, FLIP_MS);
   } else {
     card.classList.add("flipped");
+    reveal();
   }
-  $("drawBtn").classList.add("hidden");
-  ["shareHint", "shareBtn", "resetBtn", "shopBtn", "notice", "lucky"].forEach((id) => $(id).classList.remove("hidden"));
 }
 
 // 다시 뽑기: 카드를 뒤집어 처음 화면으로
 function resetCard() {
+  if (busy) return;
   fortune = null;
   $("card").classList.remove("flipped");
-  ["shareHint", "shareBtn", "resetBtn", "shopBtn", "notice", "lucky"].forEach((id) => $(id).classList.add("hidden"));
+  ["shareHint", "shareRow", "resetBtn", "shopBtn", "notice", "lucky"].forEach((id) => $(id).classList.add("hidden"));
   $("drawBtn").classList.remove("hidden");
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 function draw() {
-  if ($("card").classList.contains("flipped")) return;
+  if (busy || $("card").classList.contains("flipped")) return;
   fortune = makeFortune();
   showResult(true);
 }
@@ -502,6 +625,40 @@ async function makeCardImage() {
   return new Promise((resolve) => cv.toBlob(resolve, "image/png"));
 }
 
+/* ---------- 공유: 페이지 주소 복사 ---------- */
+let toastTimer = 0;
+function toast(msg) {
+  const t = $("toast");
+  t.innerHTML = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2600);
+}
+
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (e) {
+    // 일부 인앱 브라우저용 예비 방식
+    const ta = document.createElement("textarea");
+    ta.value = text; ta.setAttribute("readonly", ""); ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, text.length);
+    let ok = false;
+    try { ok = document.execCommand("copy"); } catch (e2) {}
+    ta.remove();
+    return ok;
+  }
+}
+
+$("linkBtn").addEventListener("click", async () => {
+  if (await copyText(SITE_URL)) {
+    toast("링크가 복사됐어요! 🔮<br>친구에게 붙여넣기 해서 보내주세요");
+  } else {
+    toast("복사가 안 되는 환경이에요<br>" + SITE_URL);
+  }
+});
+
 $("shareBtn").addEventListener("click", async () => {
   const btn = $("shareBtn");
   btn.disabled = true;
@@ -522,7 +679,7 @@ $("shareBtn").addEventListener("click", async () => {
     // 공유 창을 닫은 경우 등은 무시
   }
   btn.disabled = false;
-  btn.textContent = "결과 카드 저장 · 공유";
+  btn.innerHTML = '결과 카드 저장<span class="btn-sub">Save</span>';
 });
 </script>
 </body>
